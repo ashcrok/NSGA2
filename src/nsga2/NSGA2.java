@@ -11,35 +11,41 @@ import java.util.TreeSet;
 
 public class NSGA2 {
     
+    public static final int POPULATION = 100;
+    public static final int ITERATIONS = 1;
+    
+    public static final int MIN = -4;
+    public static final int MAX = 4;
+    
+    
     public static void main(String[] args) {
         
         long startTime = System.currentTimeMillis();
         
         // Initial population
         List<double[]> P = new ArrayList<>();
-        for (int i=0; i<100; i++) {
-            double x1 = (Math.random() * 8) - 4;
-            double x2 = (Math.random() * 8) - 4;
-            double x3 = (Math.random() * 8) - 4;
+        for (int i=0; i<POPULATION; i++) {
+            double x1 = (Math.random() * (MAX-MIN)) - MAX;
+            double x2 = (Math.random() * (MAX-MIN)) - MAX;
+            double x3 = (Math.random() * (MAX-MIN)) - MAX;
             double x[] = {x1,x2,x3};
             P.add(x);
         }
         
-        // This Q should be generated with a genetic algorithm from P
-        List<double[]> Q = selection(P);
-        Q = crossover(Q);
-        Q = mutation(Q);
+        // Q is generated with genetic operators
+        List<double[]> Q = selection2(P);
         
-        for (int i=0; i<100; i++) {
+        for (int i=0; i<ITERATIONS; i++) {
             // R is the reunion of P with Q
-            List<double[]> R = P; R.addAll(Q);
-
+            List<double[]> R = new ArrayList<>(P); 
+            R.addAll(Q);
+            
             // Get fronts from R and put the first POP_SIZE into the new P
             List<List<double[]>> fronts = fast_nondominated_sort(R);
             P = new ArrayList<>();
             for (List<double[]> front : fronts) {
-                if (front.size() + P.size() > 100) {
-                    P.addAll(front.subList(0, 100 - P.size()));
+                if (front.size() + P.size() > POPULATION) {
+                    P.addAll(front.subList(0, POPULATION - P.size()));
                     // TO DO crowding_distance_assignment
     //                crowding_distance_assignment(front,(100-P.size()));
                     break;
@@ -49,9 +55,7 @@ public class NSGA2 {
             }
             
             // GA Operators
-            Q = selection(P);
-            Q = crossover(Q);
-            Q = mutation(Q);
+            Q = selection2(P);
         }
         
         // Display la rezulate si statistici peste rezultalte
@@ -63,31 +67,58 @@ public class NSGA2 {
         System.out.println("time: " + ((endTime - startTime) * 0.001));
         System.out.println("----------");
         Set<Double> diff_values = new TreeSet<>();
+        
+        String o1 = "o1 <- c(";
         for (double[] x : first_front) {
             diff_values.add(x[0]);
+            String r = "MOP2_f1(c(";
             for (int i=0; i<x.length; i++) {
-                System.out.print(x[i] + " ");
+                r += x[i] + ", ";
             }
-            System.out.println("");
+            r = r.substring(0,r.length()-2);
+            r += "))";
+            o1 += r + ",\n";
         }
+        o1 = o1.substring(0,o1.length()-2);
+        o1 += ")";
+        
+        String o2 = "o2 <- c(";
+        for (double[] x : first_front) {
+            diff_values.add(x[0]);
+            String r = "MOP2_f2(c(";
+            for (int i=0; i<x.length; i++) {
+                r += x[i] + ", ";
+            }
+            r = r.substring(0,r.length()-2);
+            r += "))";
+            o2 += r + ",\n";
+        }
+        o2 = o2.substring(0,o2.length()-2);
+        o2 += ")";
+        
+        System.out.println(o1 + "\n\n");
+        System.out.println(o2 + "\n\n");
+        
         System.out.println("----------");
         System.out.println("different values: " + diff_values.size());
         
+        // Calculate DELTA
+        double DELTA = 0;
+        double davg = 0;
+        for (int k=1; k<first_front.size(); k++)
+            davg += d(first_front.get(k-1),first_front.get(k));
+        davg = davg / (first_front.size()-1);
+        for (int k=1; k<first_front.size(); k++)
+            DELTA += Math.abs(d(first_front.get(k-1),first_front.get(k)) - davg) / POPULATION;
+        System.out.println("DELTA: " + DELTA);
         
-        /**
-         *  Probleme:
-         * 1) Apar valori 'NaN' cateodata
-         * 2) Uneori da IndexOutOfBound de la niste random-uri
-         * 3) Sunt mult prea multe duplicate: aici ar trebui sa verific per 
-         * iteratie ca merge totul bine
-         * 
-         *  TO DO:
-         * 1) De reparat toate problemele de mai sus
-         * 2) De implementat functia care evalueaza rezultatul si de comparat
-         * cu rezultatele lui Deb
-         * 
-         */
-        
+    }
+    
+    public static double d(double[] x1, double[] x2) {
+        double sum = 0.0;
+        for (int i=0; i<x1.length; i++)
+            sum += Math.pow(x1[i] - x2[i], 2.0);
+        return Math.sqrt(sum);
     }
     
     
@@ -112,7 +143,7 @@ public class NSGA2 {
             n.add(np);
         }
         
-        List<double[]> F = F1;
+        List<double[]> F = new ArrayList<>(F1);
         List<List<double[]>> fronts = new ArrayList<>();
         fronts.add(F1);
         
@@ -129,6 +160,12 @@ public class NSGA2 {
             if (!H.isEmpty()) fronts.add(H);
             F = H;
         }
+        
+        List<double[]> last_front = new ArrayList<>();
+        for (int i=0; i<n.size(); i++)
+            if (n.get(i) > 0)
+                last_front.add(P.get(i));
+        if (!last_front.isEmpty()) fronts.add(last_front);
         
         return fronts;
     }
@@ -153,13 +190,26 @@ public class NSGA2 {
         return (MOP2f1(x) <= MOP2f1(y) && MOP2f2(x) <= MOP2f2(y) && (MOP2f1(x) < MOP2f1(y) || MOP2f2(x) < MOP2f2(y)));
     }
     
+    public static void sort(List<double[]> P) {
+        P.stream().forEach((p) -> {
+            P.stream().filter((q) -> (!op(p,q))).forEach((q) -> {
+                double[] temp = p;
+                P.set(P.indexOf(p), q);
+                P.set(P.indexOf(q), temp);
+            });
+        });
+    }
+    
     /*-------------------------------------*/
     
+    // Mutatie cu sansa de 1/n
     public static List<double[]> mutation(List<double[]> Q) {
         int C = 4;
         double[] q = Q.get((new Random()).nextInt(Q.size()));
+        for (int i=0;i<q.length;i++)
+            System.out.print(q[i] + " ");
         double[] q_new = new double[q.length];
-        for (int i=0; i<q.length; i++) {
+        for (int i=0; i<q.length; i++) { do {
             double n = q[i] + C;
             String bval = Long.toBinaryString(Double.doubleToLongBits(n));
             int cut = (new Random()).nextInt(bval.length() - 1);
@@ -167,69 +217,107 @@ public class NSGA2 {
             if (c == '0') c = '1'; else c = '0';
             bval = bval.substring(0,cut) + c + bval.substring(cut+1);
             q_new[i] = Double.longBitsToDouble(Long.parseLong(bval, 2)) - C;
-        }
-        Q.set(Q.indexOf(q), q_new);
+        } while(q_new[i] < -4 || q_new[i] > 4); }
+        Q.add(q_new);
         return Q;
     }
     
-    // Incrucisare printr-un singur punct de taiere; se face pentru fiecare valoare a vectorului solutie
-    public static List<double[]> crossover(List<double[]> Q) {
-        int C = 4;
-        double[] q1 = Q.get((new Random()).nextInt(Q.size()));
-        double[] q2 = Q.get((new Random()).nextInt(Q.size()));
-        double[] q3 = new double[q1.length], q4 = new double[q1.length];
-        for (int i=0; i<q1.length; i++) {
-            double n1 = q1[i] + C;
-            double n2 = q2[i] + C;
-            String bval1 = Long.toBinaryString(Double.doubleToLongBits(n1));
-            String bval2 = Long.toBinaryString(Double.doubleToLongBits(n2));
-            int cut = (new Random()).nextInt(bval1.length());
-            String bval3 = bval1.substring(0,cut) + bval2.substring(cut);
-            String bval4 = bval2.substring(0,cut) + bval1.substring(cut);
-            q3[i] = Double.longBitsToDouble(Long.parseLong(bval3, 2)) - C;
-            q4[i] = Double.longBitsToDouble(Long.parseLong(bval4, 2)) - C;
-        }
-        Q.set(Q.indexOf(q1), q3);
-        Q.set(Q.indexOf(q2), q4);
+    // Incrucisare prin 2 puncte de taiere
+    public static List<double[]> crossover(List<double[]> P) {
+        List<double[]> Q = new ArrayList<>(P);
+        int index1 = (new Random()).nextInt(Q.size());
+        int index2 = (new Random()).nextInt(Q.size());
+        double[] parent1 = Q.get(index1);
+        double[] parent2 = Q.get(index2);
+        double[] child1 = new double[parent1.length], child2 = new double[parent2.length];
+        for (int i=0; i<parent1.length; i++) { do {
+            child1[i] = getChild1(parent1[i]+4.0,parent2[i]+4.0)-4.0;
+            child2[i] = getChild2(parent1[i]+4.0,parent2[i]+4.0)-4.0;
+        } while(child1[i] < -4 || child1[i] > 4 || child2[i] < -4 || child2[i] > 4); }
+        Q.remove(index1); Q.add(child1);
+        Q.remove(index2); Q.add(child2);
         return Q;
     }
+    public static double getChild1(double parent1, double parent2) {
+        String binaryString1 = Long.toBinaryString(Double.doubleToLongBits(parent1));
+        String binaryString2 = Long.toBinaryString(Double.doubleToLongBits(parent2));
+        int cutPoint1 = (new Random()).nextInt(binaryString1.length()/2-1);
+        int cutPoint2 = (new Random()).nextInt(binaryString1.length()/2-1) + binaryString1.length()/2;
+        String child = binaryString1.substring(0,cutPoint1) + binaryString2.substring(cutPoint1, cutPoint2)
+                 + binaryString1.substring(cutPoint2);
+        return Double.longBitsToDouble(Long.parseLong(child,2));
+    }
+    public static double getChild2(double parent1, double parent2) {
+        String binaryString1 = Long.toBinaryString(Double.doubleToLongBits(parent1));
+        String binaryString2 = Long.toBinaryString(Double.doubleToLongBits(parent2));
+        int cutPoint1 = (new Random()).nextInt(binaryString1.length()/2-1);
+        int cutPoint2 = (new Random()).nextInt(binaryString1.length()/2-1) + binaryString1.length()/2;
+        String child = binaryString2.substring(0,cutPoint1) + binaryString1.substring(cutPoint1, cutPoint2)
+                 + binaryString2.substring(cutPoint2);
+        return Double.longBitsToDouble(Long.parseLong(child,2));
+    }
     
-    // Selectie de tip Roata Norocului
     public static List<double[]> selection(List<double[]> P) {
-        // Evalueaza P in E si fitnessul sumat S
-        List<Double> E = new ArrayList<>();
-        double S = 0;
-        for (double[] p : P) {
-            double eval_solution = MOP2f1(p) + MOP2f2(p);
-            E.add(eval_solution);
-            S += eval_solution;
-        }
-        // Prob. selectie individuala probI
-        List<Double> probI = new ArrayList<>();
-        for (double e : E) {
-            double prob = e/S;
-            probI.add(prob);
-        }
-        // Prob. selectie cumulata probC
-        List<Double> probC = new ArrayList<>();
-        probC.add(probI.get(0));
-        for (int i=1; i<probI.size(); i++) {
-            probC.add(probC.get(i-1) + probI.get(i));
-        }
-        // Selectia: Q
         List<double[]> Q = new ArrayList<>();
-        for (int i=0; i<P.size(); i++) {
-            double rand = (new Random()).nextDouble();
-            int index = 0;
-            for (int k=0; k<P.size(); k++) {
-                if (rand <= probC.get(k)) {
-                    index = k;
-                    break;
-                }
-            }
-            Q.add(P.get(index));
+        double k = 0.00; // aproximativ 70% din populatie va fi selectata mai departe
+        P.stream().filter((indiv) -> ((new Random()).nextDouble() < k)).forEach((indiv) -> {
+            Q.add(indiv);
+        });
+        double j = 0.30; // cei mai buni 70% vor fi selectati pentru supravietuire
+        sort(Q);
+        List<double[]> new_pop = new ArrayList<>();
+        for (int i=0; i<Q.size()*j; i++)
+            new_pop.add(Q.get(i));
+        //  Adaugam indivizi pana umplem populatia; facem asta aleatoriu, 
+        // dar trebuie facut cu mutatie si incrucisare
+        while (new_pop.size() < P.size()) {
+            double x1 = (Math.random() * (MAX-MIN)) - MAX;
+            double x2 = (Math.random() * (MAX-MIN)) - MAX;
+            double x3 = (Math.random() * (MAX-MIN)) - MAX;
+            double x[] = {x1,x2,x3};
+            new_pop.add(x);
+            // mutatie
+            // incrucisare
         }
-        return Q;
+        return new_pop;
+    }
+    
+    /*-------------------------------------*/
+    
+    public static double[] mutation(double[] p) {
+        double q[] = new double[p.length];
+        for (int i=0; i<p.length; i++) { do {
+            double n = q[i] + 4.0;
+            String bval = Long.toBinaryString(Double.doubleToLongBits(n));
+            int cut = (new Random()).nextInt(bval.length() - 1);
+            char c = bval.charAt(cut);
+            if (c == '0') c = '1'; else c = '0';
+            bval = bval.substring(0,cut) + c + bval.substring(cut+1);
+            q[i] = Double.longBitsToDouble(Long.parseLong(bval, 2)) - 4.0;
+        } while(q[i] < -4 || q[i] > 4 || Double.isNaN(q[i])); }
+        return q;
+    }
+    public static double[] crossover(double[] p1, double[] p2) {
+        double[] kid = new double[p1.length];
+        for (int i=0; i<p1.length; i++) { do {
+            String binaryString1 = Long.toBinaryString(Double.doubleToLongBits(p1[i] + 4));
+            String binaryString2 = Long.toBinaryString(Double.doubleToLongBits(p2[i] + 4));
+            int cutPoint1 = (new Random()).nextInt(binaryString1.length()/2-1);
+            int cutPoint2 = (new Random()).nextInt(binaryString1.length()/2-1) + binaryString1.length()/2;
+            String child = binaryString1.substring(0,cutPoint1) + binaryString2.substring(cutPoint1, cutPoint2)
+                     + binaryString1.substring(cutPoint2);
+            kid[i] = Double.longBitsToDouble(Long.parseLong(child,2)) - 4;
+        } while(kid[i] < -4 || kid[i] > 4 || Double.isNaN(kid[i])); }
+        return kid;
+    }
+    public static List<double[]> selection2(List<double[]> P) {
+        List<double[]> Q = new ArrayList<>(P);
+        List<double[]> new_pop = new ArrayList<>();
+        for (int i=0; i<Q.size()-1; i=i+2) {
+            new_pop.add(crossover(Q.get(i),Q.get(i+1)));
+            new_pop.add(crossover(Q.get(i+1),Q.get(i)));
+        }
+        return new_pop;
     }
     
     /*-------------------------------------*/
@@ -280,5 +368,22 @@ public class NSGA2 {
         result -= Math.exp(-sum);
         return result;
     }
+    
+    /*-------------------------------------*/
+    
+    public static double MOP4f1(double x[]) {
+        double result = 0;
+        for (int i=0; i<x.length-1; i++)
+            result += -10.0 * Math.exp(-0.2 * Math.sqrt(Math.pow(x[i],2) + Math.pow(x[i+1],2)));
+        return result;
+    }
+    public static double MOP4f2(double x[]) {
+        double result = 0;
+        for (int i=0; i<x.length; i++)
+            result += Math.pow(Math.abs(x[i]),0.8) + 5 * Math.pow(Math.sin(x[i]),3.0);
+        return result;
+    }
+    
+    /*-------------------------------------*/
     
 }
