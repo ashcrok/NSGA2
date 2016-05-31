@@ -12,7 +12,7 @@ import java.util.TreeSet;
 public class NSGA2 {
     
     public static final int POPULATION = 50;
-    public static final int ITERATIONS = 50;
+    public static final int ITERATIONS = 200;
     
     public static final int MIN = -4;
     public static final int MAX = 4;
@@ -97,8 +97,22 @@ public class NSGA2 {
         o2 = o2.substring(0,o2.length()-2);
         o2 += ")";
         
+        String o3 = "o3 <- c(";
+        for (double[] x : first_front) {
+            String r = "DTLZ5_f3(c(";
+            for (int i=0; i<x.length; i++) {
+                r += x[i] + ", ";
+            }
+            r = r.substring(0,r.length()-2);
+            r += "))";
+            o3 += r + ",\n";
+        }
+        o3 = o3.substring(0,o3.length()-2);
+        o3 += ")";
+        
         System.out.println(o1 + "\n\n");
         System.out.println(o2 + "\n\n");
+        System.out.println(o3 + "\n\n");
         
         System.out.println("----------");
         System.out.println("different values: " + diff_values.size());
@@ -207,9 +221,14 @@ public class NSGA2 {
     
     // Operatia dubioasa
     public static boolean op(double[] x, double[] y) {
-        double[] f = DTLZ5(x,2); // f[0] = MOP2f1(x); f[1] = MOP2f2(x)
-        double[] g = DTLZ5(y,2); // g[0] = MOP2f1(y); g[1] = MOP2f2(y)
-        return (f[0] <= g[0] && f[1] <= g[1] && (f[0] < g[0] || f[1] < g[1]));
+        // 2 dimensions
+//        double[] f = DTLZ5(x,2);
+//        double[] g = DTLZ5(y,2);
+//        return (f[0] <= g[0] && f[1] <= g[1] && (f[0] < g[0] || f[1] < g[1]));
+        // 3 dimensions
+        double[] f = DTLZ5(x,3);
+        double[] g = DTLZ5(y,3);
+        return (f[0] <= g[0] && f[1] <= g[1] && f[2] <= g[2] && (f[0] < g[0] || f[1] < g[1] || f[2] < g[2]));
     }
     
     public static void sort(List<double[]> P) {
@@ -432,7 +451,6 @@ public class NSGA2 {
         }
         for (int i=0; i<noObjectives; i++) {
             for (int j = 0; j < noObjectives - (i + 1); j++) {
-                if (i==1) System.out.println("asd");
                 f[i] *= Math.cos(theta[j]);
             }
             if (i != 0) {
