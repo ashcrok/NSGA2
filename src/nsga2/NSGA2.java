@@ -11,8 +11,8 @@ import java.util.TreeSet;
 
 public class NSGA2 {
     
-    public static final int POPULATION = 100;
-    public static final int ITERATIONS = 1;
+    public static final int POPULATION = 50;
+    public static final int ITERATIONS = 50;
     
     public static final int MIN = -4;
     public static final int MAX = 4;
@@ -37,8 +37,9 @@ public class NSGA2 {
         
         for (int i=0; i<ITERATIONS; i++) {
             // R is the reunion of P with Q
-            List<double[]> R = new ArrayList<>(P); 
+            List<double[]> R = new ArrayList<>(P);
             R.addAll(Q);
+            clearDuplicates(R);
             
             // Get fronts from R and put the first POP_SIZE into the new P
             List<List<double[]>> fronts = fast_nondominated_sort(R);
@@ -60,6 +61,7 @@ public class NSGA2 {
         
         // Display la rezulate si statistici peste rezultalte
         List<double[]> R = P; R.addAll(Q);
+        clearDuplicates(R);
         List<List<double[]>> fronts = fast_nondominated_sort(R);
         List<double[]> first_front = fronts.get(0);
         long endTime = System.currentTimeMillis();
@@ -71,7 +73,7 @@ public class NSGA2 {
         String o1 = "o1 <- c(";
         for (double[] x : first_front) {
             diff_values.add(x[0]);
-            String r = "MOP2_f1(c(";
+            String r = "DTLZ5_f1(c(";
             for (int i=0; i<x.length; i++) {
                 r += x[i] + ", ";
             }
@@ -84,8 +86,7 @@ public class NSGA2 {
         
         String o2 = "o2 <- c(";
         for (double[] x : first_front) {
-            diff_values.add(x[0]);
-            String r = "MOP2_f2(c(";
+            String r = "DTLZ5_f2(c(";
             for (int i=0; i<x.length; i++) {
                 r += x[i] + ", ";
             }
@@ -112,6 +113,25 @@ public class NSGA2 {
             DELTA += Math.abs(d(first_front.get(k-1),first_front.get(k)) - davg) / POPULATION;
         System.out.println("DELTA: " + DELTA);
         
+    }
+    
+    public static void clearDuplicates(List<double[]> R) {
+        for (int i=0; i<R.size()-1; i++) {
+            for (int j=i+1; j<R.size(); j++) {
+                double[] p = R.get(i);
+                double[] q = R.get(j);
+                boolean duplicate = true;
+                if (p[0] != q[0])
+                    duplicate = false;
+                if (duplicate) {
+                    double x1 = (Math.random() * (MAX-MIN)) - MAX;
+                    double x2 = (Math.random() * (MAX-MIN)) - MAX;
+                    double x3 = (Math.random() * (MAX-MIN)) - MAX;
+                    double x[] = {x1,x2,x3};
+                    R.set(i, x);
+                }
+            }
+        }
     }
     
     public static double d(double[] x1, double[] x2) {
@@ -187,7 +207,9 @@ public class NSGA2 {
     
     // Operatia dubioasa
     public static boolean op(double[] x, double[] y) {
-        return (MOP2f1(x) <= MOP2f1(y) && MOP2f2(x) <= MOP2f2(y) && (MOP2f1(x) < MOP2f1(y) || MOP2f2(x) < MOP2f2(y)));
+        double[] f = DTLZ5(x,2); // f[0] = MOP2f1(x); f[1] = MOP2f2(x)
+        double[] g = DTLZ5(y,2); // g[0] = MOP2f1(y); g[1] = MOP2f2(y)
+        return (f[0] <= g[0] && f[1] <= g[1] && (f[0] < g[0] || f[1] < g[1]));
     }
     
     public static void sort(List<double[]> P) {
@@ -259,7 +281,7 @@ public class NSGA2 {
     
     public static List<double[]> selection(List<double[]> P) {
         List<double[]> Q = new ArrayList<>();
-        double k = 0.00; // aproximativ 70% din populatie va fi selectata mai departe
+        double k = 0.30; // aproximativ 70% din populatie va fi selectata mai departe
         P.stream().filter((indiv) -> ((new Random()).nextDouble() < k)).forEach((indiv) -> {
             Q.add(indiv);
         });
@@ -267,7 +289,7 @@ public class NSGA2 {
         sort(Q);
         List<double[]> new_pop = new ArrayList<>();
         for (int i=0; i<Q.size()*j; i++)
-            new_pop.add(Q.get(i));
+            new_pop.add(mutation(Q.get(i)));
         //  Adaugam indivizi pana umplem populatia; facem asta aleatoriu, 
         // dar trebuie facut cu mutatie si incrucisare
         while (new_pop.size() < P.size()) {
@@ -286,36 +308,40 @@ public class NSGA2 {
     
     public static double[] mutation(double[] p) {
         double q[] = new double[p.length];
-        for (int i=0; i<p.length; i++) { do {
-            double n = q[i] + 4.0;
-            String bval = Long.toBinaryString(Double.doubleToLongBits(n));
+        for (int i=0; i<p.length; i++) {
+            String bval = doubleToBinary(q[i]);
             int cut = (new Random()).nextInt(bval.length() - 1);
             char c = bval.charAt(cut);
             if (c == '0') c = '1'; else c = '0';
             bval = bval.substring(0,cut) + c + bval.substring(cut+1);
-            q[i] = Double.longBitsToDouble(Long.parseLong(bval, 2)) - 4.0;
-        } while(q[i] < -4 || q[i] > 4 || Double.isNaN(q[i])); }
+            q[i] = binaryToDouble(bval);
+        }
         return q;
     }
     public static double[] crossover(double[] p1, double[] p2) {
         double[] kid = new double[p1.length];
-        for (int i=0; i<p1.length; i++) { do {
-            String binaryString1 = Long.toBinaryString(Double.doubleToLongBits(p1[i] + 4));
-            String binaryString2 = Long.toBinaryString(Double.doubleToLongBits(p2[i] + 4));
-            int cutPoint1 = (new Random()).nextInt(binaryString1.length()/2-1);
-            int cutPoint2 = (new Random()).nextInt(binaryString1.length()/2-1) + binaryString1.length()/2;
+        for (int i=0; i<p1.length; i++) {
+            String binaryString1 = doubleToBinary(p1[i]);
+            String binaryString2 = doubleToBinary(p2[i]);
+            int limit; if (binaryString1.length() < binaryString2.length()) limit = binaryString1.length(); else limit = binaryString2.length();
+            int cutPoint1 = (new Random()).nextInt(limit/2-1);
+            int cutPoint2 = (new Random()).nextInt(limit/2-1) + limit/2;
             String child = binaryString1.substring(0,cutPoint1) + binaryString2.substring(cutPoint1, cutPoint2)
                      + binaryString1.substring(cutPoint2);
-            kid[i] = Double.longBitsToDouble(Long.parseLong(child,2)) - 4;
-        } while(kid[i] < -4 || kid[i] > 4 || Double.isNaN(kid[i])); }
+            kid[i] = binaryToDouble(child);
+        }
         return kid;
     }
     public static List<double[]> selection2(List<double[]> P) {
         List<double[]> Q = new ArrayList<>(P);
         List<double[]> new_pop = new ArrayList<>();
         for (int i=0; i<Q.size()-1; i=i+2) {
-            new_pop.add(crossover(Q.get(i),Q.get(i+1)));
-            new_pop.add(crossover(Q.get(i+1),Q.get(i)));
+            double[] parent1 = Q.get(i);
+            double[] parent2 = Q.get(i+1);
+            double[] bro = crossover(parent1,parent2);
+            double[] sis = crossover(parent2,parent1);
+            new_pop.add(bro);
+            new_pop.add(sis);
         }
         return new_pop;
     }
@@ -382,6 +408,57 @@ public class NSGA2 {
         for (int i=0; i<x.length; i++)
             result += Math.pow(Math.abs(x[i]),0.8) + 5 * Math.pow(Math.sin(x[i]),3.0);
         return result;
+    }
+    
+    /*-------------------------------------*/
+    
+    public static double[] DTLZ5(double[] x, int noObjectives) {
+        double[] f = new double[noObjectives];
+        
+        int k = x.length - noObjectives + 1;
+        double g = 0.0;
+        for (int i=x.length-k; i<x.length; i++)
+            g += Math.pow((x[i] - 0.5),2);
+        
+        double t = Math.PI / (4.0 * (1.0 + g));
+        
+        double[] theta = new double[noObjectives - 1];
+        theta[0] = x[0] * Math.PI / 2;
+        for (int i=1; i<noObjectives-1; i++)
+            theta[i] = t * (1.0 + 2.0 * g * x[i]);
+        
+        for (int i=0; i<noObjectives; i++) {
+            f[i] = 1.0 + g;
+        }
+        for (int i=0; i<noObjectives; i++) {
+            for (int j = 0; j < noObjectives - (i + 1); j++) {
+                if (i==1) System.out.println("asd");
+                f[i] *= Math.cos(theta[j]);
+            }
+            if (i != 0) {
+                int aux = noObjectives - (i + 1);
+                f[i] *= Math.sin(theta[aux]);
+            }
+        }
+        return f;
+    }
+    
+    /*-------------------------------------*/
+    
+    // DOUBLE TO BITS AND BACK
+    private static String doubleToBinary(double x) {
+        int d = 6;
+        double N = (MAX - MIN) * Math.pow(10,d);
+        int n = (int) Math.ceil(Math.log(N) / Math.log(2));
+        long decimal = (long) ((x - MIN) * (Math.pow(2,n) - 1) / (MAX - MIN));
+        return Long.toBinaryString(decimal);
+    }
+    private static double binaryToDouble(String b) {
+        int d = 6;
+        double N = (MAX - MIN) * Math.pow(10,d);
+        int n = (int) Math.ceil(Math.log(N) / Math.log(2));
+        long decimal = Long.parseLong(b, 2);
+        return (MIN + decimal * (MAX - MIN) / (Math.pow(2,n) - 1));
     }
     
     /*-------------------------------------*/
