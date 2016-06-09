@@ -3,35 +3,38 @@ package functions.ZDT;
 
 import functions.F;
 
-public class ZDT6 extends F {
+public class ZDT4 extends F { // Not working right
     
-    private final int MIN = 0;
-    private final int MAX = 1;
+    private final int MIN = -5;
+    private final int MAX = 5;
     private static int M;
     private static int n;
     private double[] sol;
     
     // --------------------------------------------------------------------- //
     
-    public ZDT6() {
-        ZDT6.M = 2;
-        ZDT6.n = 10;
+    public ZDT4() {
+        ZDT4.M = 2;
+        ZDT4.n = 10;
         sol = new double[n];
-        for (int i = 0; i < n; i++)
+        sol[0] = Math.random();
+        for (int i = 1; i < n; i++)
             sol[i] = MIN + (MAX - MIN) * Math.random();
     }
-    public ZDT6(int noVariables) {
-        ZDT6.M = 2;
-        ZDT6.n = noVariables;
+    public ZDT4(int noVariables) {
+        ZDT4.M = 2;
+        ZDT4.n = noVariables;
         sol = new double[n];
-        for (int i = 0; i < n; i++)
+        sol[0] = Math.random();
+        for (int i = 1; i < n; i++)
             sol[i] = MIN + (MAX - MIN) * Math.random();
     }
     
     @Override
     public double[] generate() {
         double[] solution = new double[n];
-        for (int i = 0; i < n; i++)
+        solution[0] = Math.random();
+        for (int i = 1; i < n; i++)
             solution[i] = MIN + (MAX - MIN) * Math.random();
         return solution;
     }
@@ -41,14 +44,25 @@ public class ZDT6 extends F {
     @Override
     public double[] evaluate() {
         double[] f = new double[M];
-        f[0] = 1.0 - Math.exp((-4.0) * sol[0]) * Math.pow(Math.sin(6.0 * Math.PI * sol[0]), 6.0);
-        double g = 0.0;
-        for(int i = 1; i < sol.length; i++)
-            g += sol[i];
-        g = 1.0 + 9.0 * Math.pow(g/(n-1), 0.25);
-        double h = 1.0 - Math.pow(f[0]/g, 2.0);
-        f[1] = h;
+        f[0] = sol[0];
+        double g = this.evalG();
+        double h = this.evalH(f[0],g);
+        f[1] = h * g;
         return f;
+    }
+    
+    private double evalG() {
+        double g = 0.0;
+        for (int i = 1; i < sol.length; i++)
+            g += Math.pow(sol[i],2.0) + -10.0 * Math.cos(4.0 * Math.PI * sol[i]);
+        g += 1.0 + 10 * (sol.length - 1);
+        return g;
+    }
+    
+    private double evalH(double f, double g) {
+        double h;
+        h = 1.0 - Math.pow(f*g, 2.0);
+        return h;
     }
     
     // --------------------------------------------------------------------- //

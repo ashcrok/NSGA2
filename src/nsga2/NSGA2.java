@@ -5,13 +5,14 @@ import functions.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import metrics.Hypervolume;
 
 public class NSGA2 {
     
     public static final int POPULATION = 100;
     public static final int ITERATIONS = 250;
     
-    public static F func = new functions.ZDT.ZDT6();
+    public static F func = new functions.ZDT.ZDT3();
     
     // --------------------------------------------------------------------- //
     
@@ -50,6 +51,7 @@ public class NSGA2 {
         // Print stuff
         printFirstFrontFormated(first_front);
         printDelta(first_front);
+        printHypervolume(first_front);
     }
     
     // --------------------------------------------------------------------- //
@@ -61,6 +63,21 @@ public class NSGA2 {
             System.out.println();
         }
         System.out.println("\n\n");
+    }
+    
+    public void printHypervolume(List<double[]> pop) {
+        List<double[]> front = new ArrayList<>();
+        for (int i = 0; i < func.getNoObjectives(); i++)
+            front.add(new double[pop.size()]);
+        for (int i = 0; i < pop.size(); i++) {
+            func.set(pop.get(i));
+            double[] fitness = func.evaluate();
+            for (int j = 0; j < func.getNoObjectives(); j++)
+                front.get(j)[i] = fitness[j];
+        }
+        double hypervolume = new Hypervolume(func).calculateHypervolume(front, front.get(0).length, front.size());
+        System.out.println("HYPERVOLUME VALUE: " + hypervolume);
+        System.out.println("-------\n");
     }
     
     public void printFirstFrontFormated(List<double[]> pop) {

@@ -3,7 +3,7 @@ package functions.ZDT;
 
 import functions.F;
 
-public class ZDT6 extends F {
+public class ZDT2 extends F {
     
     private final int MIN = 0;
     private final int MAX = 1;
@@ -13,16 +13,16 @@ public class ZDT6 extends F {
     
     // --------------------------------------------------------------------- //
     
-    public ZDT6() {
-        ZDT6.M = 2;
-        ZDT6.n = 10;
+    public ZDT2() {
+        ZDT2.M = 2;
+        ZDT2.n = 30;
         sol = new double[n];
         for (int i = 0; i < n; i++)
             sol[i] = MIN + (MAX - MIN) * Math.random();
     }
-    public ZDT6(int noVariables) {
-        ZDT6.M = 2;
-        ZDT6.n = noVariables;
+    public ZDT2(int noVariables) {
+        ZDT2.M = 2;
+        ZDT2.n = noVariables;
         sol = new double[n];
         for (int i = 0; i < n; i++)
             sol[i] = MIN + (MAX - MIN) * Math.random();
@@ -41,14 +41,27 @@ public class ZDT6 extends F {
     @Override
     public double[] evaluate() {
         double[] f = new double[M];
-        f[0] = 1.0 - Math.exp((-4.0) * sol[0]) * Math.pow(Math.sin(6.0 * Math.PI * sol[0]), 6.0);
-        double g = 0.0;
-        for(int i = 1; i < sol.length; i++)
-            g += sol[i];
-        g = 1.0 + 9.0 * Math.pow(g/(n-1), 0.25);
-        double h = 1.0 - Math.pow(f[0]/g, 2.0);
-        f[1] = h;
+        f[0] = sol[0];
+        double g = this.evalG();
+        double h = this.evalH(f[0],g);
+        f[1] = h * g;
         return f;
+    }
+    
+    private double evalG() {
+        double g = 0.0;
+        for (int i = 1; i < sol.length; i++)
+            g += sol[i];
+        double constant = 9.0 / (sol.length - 1);
+        g = constant * g;
+        g = g + 1.0;
+        return g;
+    }
+    
+    private double evalH(double f, double g) {
+        double h;
+        h = 1.0 - Math.pow(f/g, 2.0);
+        return h;
     }
     
     // --------------------------------------------------------------------- //
