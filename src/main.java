@@ -1,5 +1,6 @@
 
 import moead.MOEAD;
+import nsga2.NSGA2;
 
 public class main {
 
