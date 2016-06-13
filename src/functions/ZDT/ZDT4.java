@@ -46,8 +46,7 @@ public class ZDT4 extends F { // Not working right
         double[] f = new double[M];
         f[0] = sol[0];
         double g = this.evalG();
-        double h = this.evalH(f[0],g);
-        f[1] = h * g;
+        f[1] = g * (1 - Math.sqrt(f[0] / g));
         return f;
     }
     
@@ -57,12 +56,6 @@ public class ZDT4 extends F { // Not working right
             g += Math.pow(sol[i],2.0) + -10.0 * Math.cos(4.0 * Math.PI * sol[i]);
         g += 1.0 + 10 * (sol.length - 1);
         return g;
-    }
-    
-    private double evalH(double f, double g) {
-        double h;
-        h = 1.0 - Math.pow(f*g, 2.0);
-        return h;
     }
     
     // --------------------------------------------------------------------- //
