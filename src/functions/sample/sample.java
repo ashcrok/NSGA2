@@ -1,15 +1,8 @@
-/*
- * File created by Mihai Pricop
- *                 (ashcrok)
- */
-package functions.simple;
+
+package functions.sample;
 
 import functions.F;
 
-/**
- *
- * @author mihaipricop
- */
 public class sample extends F {
     
     private final int MIN = -10;

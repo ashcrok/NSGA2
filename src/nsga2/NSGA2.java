@@ -12,7 +12,7 @@ public class NSGA2 {
     public static final int POPULATION = 100;
     public static final int ITERATIONS = 250;
     
-    public static F func = new functions.MOP.MOP2();
+    public static F func = new functions.ZDT.ZDT6();
     
     // --------------------------------------------------------------------- //
     

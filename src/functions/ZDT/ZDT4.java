@@ -3,10 +3,13 @@ package functions.ZDT;
 
 import functions.F;
 
-public class ZDT4 extends F { // Not working right
+public class ZDT4 extends F { 
+
+    // Not working right
+    //  - because the difference of intervals on different values
     
-    private final int MIN = -5;
-    private final int MAX = 5;
+    private final int MIN = 0;
+    private final int MAX = 1;
     private static int M;
     private static int n;
     private double[] sol;
@@ -46,14 +49,14 @@ public class ZDT4 extends F { // Not working right
         double[] f = new double[M];
         f[0] = sol[0];
         double g = this.evalG();
-        f[1] = g * (1 - Math.sqrt(f[0] / g));
+        f[1] = g * (1 - Math.pow(f[0] / g, 2.0));
         return f;
     }
     
     private double evalG() {
         double g = 0.0;
         for (int i = 1; i < sol.length; i++)
-            g += Math.pow(sol[i],2.0) + -10.0 * Math.cos(4.0 * Math.PI * sol[i]);
+            g += Math.pow(sol[i],2.0) - 10.0 * Math.cos(4.0 * Math.PI * sol[i]);
         g += 1.0 + 10 * (sol.length - 1);
         return g;
     }

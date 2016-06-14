@@ -1,7 +1,4 @@
-/*
- * File created by Mihai Pricop
- *                 (ashcrok)
- */
+
 package moead;
 
 import java.util.ArrayList;
@@ -9,10 +6,6 @@ import java.util.List;
 import java.util.Random;
 import metrics.Hypervolume;
 
-/**
- *
- * @author mihaipricop
- */
 public class MOEAD {
     
     public static final int N = 20; // Population size - the number of subproblems
