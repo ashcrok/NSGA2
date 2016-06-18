@@ -2,13 +2,14 @@
 package moead;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import metrics.Hypervolume;
 
 public class MOEAD {
     
-    public static final int N = 20; // Population size - the number of subproblems
+    public static final int N = 30; // Population size - the number of subproblems
     public static final int T = 5; // Number of weight vectors in the neighborhood
     public static final int ITERATIONS = 1000;
     public static final double SIGMA = 0.5; // Probability that parent solutions
@@ -22,28 +23,34 @@ public class MOEAD {
         
         // Step 1 - Initialization
         List<double[]> l = getLambdaDistribution();
-        List<List<double[]>> B = closestWeightVectors(l);
+        List<List<Integer>> B = closestWeightVectors(l);
         List<double[]> pop = new ArrayList<>();
-        List<double[]> FV = new ArrayList<>();
         for (int i = 0; i < N; i++)
             pop.add(func.generate());
-        for (double[] sol : pop) {
-            func.set(sol); FV.add(func.evaluate()); }
         double[] Z = initZ(pop);
+        
+        System.out.println("Initialization finished");
         
         // Step 2 - Update
         for (int i = 0; i < N; i++) {
+            // Step 2.1 - Selection of Mating/Update Range
             double rand = Math.random();
-            List<double[]> P;
+            List<Integer> P = new ArrayList<>();
             if (rand < SIGMA)
-                P = new ArrayList<>(B.get(i));
-            else P = new ArrayList<>(pop);
+                P = B.get(i);
+            else {
+                for (int j = 0; j < N; j++)
+                    P.add(j);
+            }
+            // Step 2.2 - Reproduction
             double[] y = polynomialMutation(DEoperator(pop.get(i),
-                    P.get((new Random()).nextInt(P.size())), 
-                    P.get((new Random()).nextInt(P.size()))));
+                    pop.get(P.get((new Random()).nextInt(P.size()))), 
+                    pop.get(P.get((new Random()).nextInt(P.size())))));
+            // Step 2.3 - Repair
             for (int k = 0; k < y.length; k++)
                 if (y[k] < func.getMinValue() || y[k] > func.getMaxValue())
                     y[k] = func.getMinValue() + (func.getMaxValue() - func.getMinValue()) * Math.random();
+            // Step 2.4 - Update of Z
             for (int j = 0; j < func.getNoObjectives(); j++) {
                 func.set(y);
                 double fitY = func.evaluate()[j];
@@ -51,18 +58,16 @@ public class MOEAD {
                 if (fitZj > fitY)
                     Z[j] = fitY;
             }
+            // Step 2.5 - Update of solutions
             int c = 0;
             int nr = 3;
             while (!P.isEmpty() && c != nr) {
-                int j = (new Random()).nextInt(P.size());
-                // aici ii ceva ciudat, la conditia de mai jos. trebuie verificat
-                if (gte(y,l.get(j),Z) <= gte(P.get(j),l.get(j),Z)) {
-                    pop.set(pop.indexOf(P.get(j)), y);
-                    func.set(y);
-                    FV.set(pop.indexOf(P.get(j)), func.evaluate());
+                int j = P.get((new Random()).nextInt(P.size()));
+                if (gte(y,l.get(j),Z) <= gte(pop.get(j),l.get(j),Z)) { // de verificat gte daca e nevoie
+                    pop.set(j, y);
                     c++;
                 }
-                P.remove(j);
+                P.remove(P.indexOf(j));
             }
         }
         
@@ -83,14 +88,14 @@ public class MOEAD {
         return l;
     }
     
-    private List<List<double[]>> closestWeightVectors(List<double[]> l) {
-        List<List<double[]>> B = new ArrayList<>();
+    private List<List<Integer>> closestWeightVectors(List<double[]> l) {
+        List<List<Integer>> B = new ArrayList<>();
         l.stream().map((wv) -> {
             double[] d = new double[l.size()];
-            for (int i=0; i<l.size(); i++)
+            for (int i = 0; i < l.size(); i++)
                 d[i] = d(wv,l.get(i));
-            List<double[]> b = new ArrayList<>();
-            for (int k=0; k<T; k++) {
+            List<Integer> b = new ArrayList<>();
+            for (int k = 0; k < T; k++) {
                 double minDistance = Integer.MAX_VALUE;
                 int minDistanceIndex = -1;
                 for (int i=0; i<d.length; i++)
@@ -99,7 +104,7 @@ public class MOEAD {
                         minDistanceIndex = i;
                     }
                 d[minDistanceIndex] = Double.MAX_VALUE;
-                b.add(l.get(minDistanceIndex));
+                b.add(minDistanceIndex);
             }
             return b;
         }).forEach((b) -> {
@@ -123,7 +128,7 @@ public class MOEAD {
         return z;
     }
     
-    public static double gte(double[] x, double[] l, double[] z) { 
+    private double gte(double[] x, double[] l, double[] z) { 
         func.set(x);
         double[] fit = func.evaluate();
         double max = Double.MIN_VALUE;
@@ -135,9 +140,9 @@ public class MOEAD {
     
     // --------------------------------------------------------------------- //
     
-    private static final double CR = 1.0;
-    private static final double F = 0.01;
-    public double[] DEoperator(double[] xr1, double[] xr2, double[] xr3) {
+    private final double CR = 1.0;
+    private final double F = 0.01;
+    private double[] DEoperator(double[] xr1, double[] xr2, double[] xr3) {
         double[] y = new double[xr1.length];
         for (int i = 0; i < xr1.length; i++) {
             if (Math.random() < CR)
@@ -148,8 +153,8 @@ public class MOEAD {
         return y;
     }
     
-    private static final double eta = 1.0;
-    private static final double pm = 0.6;
+    private final double eta = 1.0;
+    private final double pm = 0.6;
     private double[] polynomialMutation(double[] notY) {
         double[] y = new double[notY.length];
         for (int i = 0; i < notY.length; i++) {
@@ -167,7 +172,7 @@ public class MOEAD {
     
     // --------------------------------------------------------------------- //
     
-    public void printFirstFrontFormated(List<double[]> pop) {
+    private void printFirstFrontFormated(List<double[]> pop) {
         List<double[]> graphic = new ArrayList<>();
         for (int i = 0; i < func.getNoObjectives(); i++)
             graphic.add(new double[pop.size()]);
@@ -192,7 +197,7 @@ public class MOEAD {
         System.out.println("-------\n");
     }
     
-    public void printPopulation(List<double[]> pop) {
+    private void printPopulation(List<double[]> pop) {
         for (double[] p : pop) {
             for (int i = 0; i < p.length; i++)
                 System.out.print(p[i] + " ");
@@ -201,7 +206,7 @@ public class MOEAD {
         System.out.println("\n\n");
     }
     
-    public void printHypervolume(List<double[]> pop) {
+    private void printHypervolume(List<double[]> pop) {
         List<double[]> front = new ArrayList<>();
         for (int i = 0; i < func.getNoObjectives(); i++)
             front.add(new double[pop.size()]);
@@ -216,7 +221,7 @@ public class MOEAD {
         System.out.println("-------\n");
     }
     
-    public void printDelta(List<double[]> pop) {
+    private void printDelta(List<double[]> pop) {
         double DELTA = 0.0;
         double davg = 0.0;
         for (int k = 1; k < pop.size(); k++)
@@ -228,7 +233,18 @@ public class MOEAD {
         System.out.println("-------\n");
     }
     
-    public double d(double[] x1, double[] x2) {
+    public int[] removeElements(int[] input, int deleteMe) {
+        int[] output = new int[100];
+        int j = 0;
+        for (int i = 0; i < input.length; i++) 
+            if (deleteMe != i) {
+                output[j] = input[i];
+                j++;
+            }
+        return output;
+    }
+    
+    private double d(double[] x1, double[] x2) {
         double sum = 0.0;
         for (int i=0; i<x1.length; i++)
             sum += Math.pow(x1[i] - x2[i], 2.0);

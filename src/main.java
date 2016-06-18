@@ -1,12 +1,16 @@
 
+import moead.MOEAD;
+import moead.MOEADDE;
 
 public class main {
 
     public static void main(String[] args) {
         
-//        new NSGA2().run();
-       
+        MOEADDE moead = new MOEADDE();
+        moead.run();
         
     }
     
 }
+
+

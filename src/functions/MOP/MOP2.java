@@ -15,7 +15,7 @@ public class MOP2 extends F {
     
     public MOP2() {
         MOP2.M = 2;
-        MOP2.n = 3;
+        MOP2.n = 1;
         sol = new double[n];
         for (int i = 0; i < n; i++) sol[i] = MIN + (MAX - MIN) * Math.random();
     }

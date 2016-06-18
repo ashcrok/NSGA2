@@ -9,10 +9,12 @@ import metrics.Hypervolume;
 
 public class NSGA2 {
     
-    public static final int POPULATION = 100;
-    public static final int ITERATIONS = 250;
+    public final int POPULATION;
+    public final int ITERATIONS;
     
-    public static F func = new functions.ZDT.ZDT6();
+    public F func = new functions.ZDT.ZDT1();
+    
+    public List<double[]> finalPop;
     
     // --------------------------------------------------------------------- //
     
@@ -47,14 +49,11 @@ public class NSGA2 {
         List<double[]> R = P; R.addAll(Q);
         clearDuplicates(R);
         List<List<double[]>> fronts = fast_nondominated_sort(R);
-        List<double[]> first_front = fronts.get(0);
-        // Print stuff
-        printFirstFrontFormated(first_front);
-        printDelta(first_front);
-        printHypervolume(first_front);
+        finalPop = fronts.get(0);
     }
     
     // --------------------------------------------------------------------- //
+    // Methods for Java console manipulation
     
     public void printPopulation(List<double[]> pop) {
         for (double[] p : pop) {
@@ -138,9 +137,61 @@ public class NSGA2 {
     }
     
     // --------------------------------------------------------------------- //
+    // Methods for R package manipulation
+    
+    public double getDelta() {
+        double DELTA = 0.0;
+        double davg = 0.0;
+        for (int k = 1; k < finalPop.size(); k++)
+            davg += d(finalPop.get(k-1), finalPop.get(k));
+        davg = davg / (finalPop.size() - 1);
+        for (int k = 1; k < finalPop.size(); k++)
+            DELTA += Math.abs(d(finalPop.get(k-1),finalPop.get(k)) - davg) / POPULATION;
+        return DELTA;
+    }
+    
+    public double getHypervolume() {
+        List<double[]> front = new ArrayList<>();
+        for (int i = 0; i < func.getNoObjectives(); i++)
+            front.add(new double[finalPop.size()]);
+        for (int i = 0; i < finalPop.size(); i++) {
+            func.set(finalPop.get(i));
+            double[] fitness = func.evaluate();
+            for (int j = 0; j < func.getNoObjectives(); j++)
+                front.get(j)[i] = fitness[j];
+        }
+        return new Hypervolume(func).calculateHypervolume(front, front.get(0).length, front.size());
+    }
+    
+    public String[] getFitness() {
+        List<double[]> graphic = new ArrayList<>();
+        for (int i = 0; i < func.getNoObjectives(); i++)
+            graphic.add(new double[finalPop.size()]);
+        for (int i = 0; i < finalPop.size(); i++) {
+            func.set(finalPop.get(i));
+            double[] fitness = func.evaluate();
+            for (int j = 0; j < func.getNoObjectives(); j++)
+                graphic.get(j)[i] = fitness[j];
+        }
+        String[] result = new String[graphic.size()];
+        for (int i = 0; i < graphic.size(); i++) {
+            String r = "";
+            double[] f = graphic.get(i);
+            r += "f" + (i+1) + " <- c(";
+            for (int j = 0; j < f.length; j++) {
+                r += f[j];
+                if (j!=f.length-1) r += ", ";
+            }
+            r += ");";
+            result[i] = r;
+        }
+        return result;
+    }
+    
+    // --------------------------------------------------------------------- //
     
     // Fast non-dominated sort
-    public static List<List<double[]>> fast_nondominated_sort(List<double[]> P) {
+    public List<List<double[]>> fast_nondominated_sort(List<double[]> P) {
         List<double[]> F1 = new ArrayList<>();
         List<List<double[]>> S = new ArrayList<>();
         List<Integer> n = new ArrayList<>();
@@ -187,7 +238,7 @@ public class NSGA2 {
     }
     
     // Crowding distance assignment
-    public static void crowding_distance_assignment(List<double[]> front, int size) {
+    public void crowding_distance_assignment(List<double[]> front, int size) {
         int l = front.size();
         List<Integer> L = new ArrayList<>();
         for (int i=0; i<l; i++) L.add(0);
@@ -195,7 +246,7 @@ public class NSGA2 {
     }
     
     // Dominance operator
-    public static boolean op(double[] x, double[] y) {
+    public boolean op(double[] x, double[] y) {
         func.set(x);
         double[] f = func.evaluate();
         func.set(y);
@@ -205,7 +256,7 @@ public class NSGA2 {
     }
     
     // Sort population after dominance operator
-    public static void sort(List<double[]> P) {
+    public void sort(List<double[]> P) {
         P.stream().forEach((p) -> {
             P.stream().filter((q) -> (!op(p,q))).forEach((q) -> {
                 double[] temp = p;
@@ -260,7 +311,7 @@ public class NSGA2 {
     // --------------------------------------------------------------------- //
     
     // DOUBLE TO BITS AND BACK
-    private static String doubleToBinary(double x) {
+    private String doubleToBinary(double x) {
         int d = 6;
         double N = (func.getMaxValue() - func.getMinValue()) * Math.pow(10,d);
         int n = (int) Math.ceil(Math.log(N) / Math.log(2));
@@ -269,12 +320,44 @@ public class NSGA2 {
         if (binary.length() < 5) binary = "000" + binary;
         return binary;
     }
-    private static double binaryToDouble(String b) {
+    private double binaryToDouble(String b) {
         int d = 6;
         double N = (func.getMaxValue() - func.getMinValue()) * Math.pow(10,d);
         int n = (int) Math.ceil(Math.log(N) / Math.log(2));
         long decimal = Long.parseLong(b, 2);
         return (func.getMinValue() + decimal * (func.getMaxValue() - func.getMinValue()) / (Math.pow(2,n) - 1));
+    }
+    
+    // --------------------------------------------------------------------- //
+    
+    public NSGA2() { 
+        this.POPULATION = 100;
+        this.ITERATIONS = 250;
+    }
+    public NSGA2(int pop_size, int iterations) {
+        this.POPULATION = pop_size;
+        this.ITERATIONS = iterations;
+    }
+    public NSGA2(int pop_size, int iterations, String f) {
+        this.POPULATION = pop_size;
+        this.ITERATIONS = iterations;
+        this.setFunction(f);
+    }
+    
+    private void setFunction(String f) {
+        System.out.println("setting function");
+        switch(f) {
+            // MOP Functions
+            case "MOP2": this.func = new functions.MOP.MOP2(); break;
+            case "MOP4": this.func = new functions.MOP.MOP4(); break;
+            // DTLZ Functions
+            case "DTLZ5": this.func = new functions.DTLZ.DTLZ5(); break;
+            // ZDT Fcuntions
+            case "ZDT1": this.func = new functions.ZDT.ZDT1(); break;
+            case "ZDT2": this.func = new functions.ZDT.ZDT2(); break;
+            case "ZDT3": this.func = new functions.ZDT.ZDT3(); break;
+            case "ZDT6": this.func = new functions.ZDT.ZDT6(); break;
+        }
     }
     
     // --------------------------------------------------------------------- //
