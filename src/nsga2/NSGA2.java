@@ -12,7 +12,7 @@ public class NSGA2 {
     public final int POPULATION;
     public final int ITERATIONS;
     
-    public F func = new functions.ZDT.ZDT1();
+    public F func = new functions.MOP.MOP2();
     
     public List<double[]> finalPop;
     

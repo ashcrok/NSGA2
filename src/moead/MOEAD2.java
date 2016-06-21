@@ -107,11 +107,11 @@ public class MOEAD2 {
     
     private double gws(double[] x, double[] l) { 
         func.set(x);
-        double r = 0.0;
         double[] fit = func.evaluate();
-        for (int i = 0; i < fit.length; i++)
-            r += (fit[i] * l[i]);
-        return r;
+        return (-fit[0] * l[0] - fit[1] * l[1]);
+//        for (int i = 0; i < fit.length; i++)
+//            r += (fit[i] * l[i]);
+//        return r;Z
     }
     
     // --------------------------------------------------------------------- //
