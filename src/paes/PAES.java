@@ -7,18 +7,20 @@ import java.util.List;
 import java.util.Random;
 
 public class PAES {
+    
+    private final int ITERATIONS = 100000;
+    private final int MAX_SIZE = 100;
         
-    private final F func = new functions.MOP.MOP2();
+    private final F func = new functions.DTLZ.DTLZ5();
     
     // --------------------------------------------------------------------- //
     
     public void run() {
         
         List<double[]> archive = new ArrayList<>();
-        final int archive_max_size = 150;
         
         archive.add(func.generate());
-        for (int i = 0; i < 2500 && archive.size() < archive_max_size; i++) {
+        for (int i = 0; i < ITERATIONS || archive.size() < MAX_SIZE; i++) {
 //            double[] current_solution = archive.get(new Random().nextInt(archive.size()));
             double[] current_solution;
             if (archive.size() > 5) current_solution = this.getBestCandidate(archive);
@@ -34,6 +36,9 @@ public class PAES {
                 // do nothing
             } else {
                 archive.add(new_solution);
+                updateArchive(archive,new_solution);
+                if (archive.size() > MAX_SIZE)
+                    archive.remove(getWorstCandidate(archive));
             }
         }
         
@@ -75,6 +80,33 @@ public class PAES {
         for (int i = 0; i < crowd.size(); i++) {
             if (crowd.get(i) > max) {
                 max = crowd.get(i);
+                index = i;
+            }
+        }
+        return archive.get(index);
+    }
+    
+    private double[] getWorstCandidate(List<double[]> archive) {
+        List<double[]> fitness = new ArrayList<>();
+        for (double[] sol : archive) {
+            func.set(sol); fitness.add(func.evaluate());
+        }
+        List<Double> crowd = new ArrayList<>();
+        for (int i = 0; i < archive.size(); i++)
+            crowd.add(0.0);
+        for (int i = 0; i < func.getNoObjectives(); i++) {
+            double[] x = new double[archive.size()];
+            for (int j = 0; j < fitness.size(); j++)
+                x[j] = fitness.get(j)[i];
+            double[] localCrowd = crowd(x);
+            for (int j = 0 ; j < crowd.size(); j++)
+                crowd.set(j,crowd.get(j) + localCrowd[j]);
+        }
+        double min = Double.MAX_VALUE;
+        int index = -1;
+        for (int i = 0; i < crowd.size(); i++) {
+            if (crowd.get(i) < min) {
+                min = crowd.get(i);
                 index = i;
             }
         }

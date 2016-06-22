@@ -12,7 +12,7 @@ public class NSGA2 {
     public final int POPULATION;
     public final int ITERATIONS;
     
-    public F func = new functions.MOP.MOP2();
+    public F func = new functions.DTLZ.DTLZ5(3);
     
     public List<double[]> finalPop;
     
@@ -252,7 +252,7 @@ public class NSGA2 {
         func.set(y);
         double[] g = func.evaluate();
         
-        return (f[0] <= g[0] && f[1] <= g[1] && (f[0] < g[0] || f[1] < g[1]));
+        return (f[0] <= g[0] && f[1] <= g[1] && f[2] <= g[2] && (f[0] < g[0] || f[1] < g[1] || f[2] < g[2]));
     }
     
     // Sort population after dominance operator

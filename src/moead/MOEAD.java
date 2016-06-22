@@ -9,13 +9,13 @@ import metrics.Hypervolume;
 
 public class MOEAD {
     
-    public static final int N = 30; // Population size - the number of subproblems
+    public static final int N = 100; // Population size - the number of subproblems
     public static final int T = 5; // Number of weight vectors in the neighborhood
-    public static final int ITERATIONS = 1000;
+    public static final int ITERATIONS = 10000;
     public static final double SIGMA = 0.5; // Probability that parent solutions
                                             // are selected from the neighborhood
     
-    public static functions.F func = new functions.MOP.MOP2();
+    public static functions.F func = new functions.ZDT.ZDT1();
     
     // --------------------------------------------------------------------- //
     
@@ -29,7 +29,7 @@ public class MOEAD {
             pop.add(func.generate());
         double[] Z = initZ(pop);
         
-        System.out.println("Initialization finished");
+        for (int it = 0; it < ITERATIONS; it++) {
         
         // Step 2 - Update
         for (int i = 0; i < N; i++) {
@@ -59,6 +59,7 @@ public class MOEAD {
                     Z[j] = fitY;
             }
             // Step 2.5 - Update of solutions
+            /*
             int c = 0;
             int nr = 3;
             while (!P.isEmpty() && c != nr) {
@@ -69,6 +70,12 @@ public class MOEAD {
                 }
                 P.remove(P.indexOf(j));
             }
+            */
+            for (int j : P)
+                if (gte(y,l.get(j),Z) <=  gte(pop.get(j),l.get(j),Z)) {
+                    pop.set(j, y); break; }
+        }
+        
         }
         
         // Step 3 - Print
@@ -140,8 +147,8 @@ public class MOEAD {
     
     // --------------------------------------------------------------------- //
     
-    private final double CR = 1.0;
-    private final double F = 0.01;
+    private final double CR = 1;
+    private final double F = 0.001;
     private double[] DEoperator(double[] xr1, double[] xr2, double[] xr3) {
         double[] y = new double[xr1.length];
         for (int i = 0; i < xr1.length; i++) {
@@ -153,7 +160,7 @@ public class MOEAD {
         return y;
     }
     
-    private final double eta = 1.0;
+    private final double eta = 10.0;
     private final double pm = 0.6;
     private double[] polynomialMutation(double[] notY) {
         double[] y = new double[notY.length];

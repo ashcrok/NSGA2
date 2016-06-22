@@ -9,13 +9,13 @@ import java.util.Random;
 
 public class MOEADDE {
     
-    public static final int N = 100; // Population size - the number of subproblems
+    public static final int N = 150; // Population size - the number of subproblems
     public static final int T = 5; // Number of weight vectors in the neighborhood
-    public static final int ITERATIONS = 10000;
+    public static final int ITERATIONS = 3000;
     public static final double SIGMA = 0.5; // Probability that parent solutions
                                             // are selected from the neighborhood
     
-    public static functions.F func = new functions.MOP.MOP2();
+    public static functions.F func = new functions.DTLZ.DTLZ5();
     
     // --------------------------------------------------------------------- //
     
@@ -27,7 +27,9 @@ public class MOEADDE {
         List<List<Integer>> B = closestWeightVectors(l);
         List<double[]> pop = new ArrayList<>();
         for (int i = 0; i < N; i++) pop.add(func.generate());
-        double[] Z = initZ();
+        double[] Z = initZ(pop);
+        
+        for (int it = 0; it < ITERATIONS; it++) {
         
         // Step 2 - Update
         for (int i = 0; i < N; i++) {
@@ -61,6 +63,8 @@ public class MOEADDE {
                     isDominated = true;
             }
             if (!isDominated) EP.add(y);
+        }
+        
         }
         
         // Step 3 - Print
@@ -120,9 +124,23 @@ public class MOEADDE {
         }
         return z;
     }
+    private double[] initZ(List<double[]> P) {
+        double[] z = new double[func.getNoObjectives()];
+        for (int i = 0; i < func.getNoObjectives(); i++) {
+            double min = Double.MAX_VALUE;
+            for (int j = 0; j < P.size(); j++) {
+                func.set(P.get(j));
+                double[] fitness = func.evaluate();
+                if (fitness[i] < min)
+                    min = fitness[i];
+            }
+            z[i] = min;
+        }
+        return z;
+    }
     
     private boolean dominates(double[] f, double[] g) {
-        return (f[0] < g[0]);
+        return f[0] <= g[0] && f[1] <= g[1] && (f[0] < g[0] || f[1] < g[1]);
     }
     
     private double gte(double[] x, double[] l, double[] z) { 
