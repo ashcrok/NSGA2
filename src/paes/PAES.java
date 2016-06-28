@@ -8,20 +8,18 @@ import java.util.Random;
 
 public class PAES {
     
-    private final int ITERATIONS = 100000;
-    private final int MAX_SIZE = 100;
+    private final int ITERATIONS;
+    private final int MAX_SIZE;
         
-    private final F func = new functions.DTLZ.DTLZ5();
+    private F func = new functions.DTLZ.DTLZ5();
+        
+    private List<double[]> archive = new ArrayList<>();
     
     // --------------------------------------------------------------------- //
     
     public void run() {
-        
-        List<double[]> archive = new ArrayList<>();
-        
         archive.add(func.generate());
-        for (int i = 0; i < ITERATIONS || archive.size() < MAX_SIZE; i++) {
-//            double[] current_solution = archive.get(new Random().nextInt(archive.size()));
+        for (int i = 0; i < ITERATIONS; i++) {
             double[] current_solution;
             if (archive.size() > 5) current_solution = this.getBestCandidate(archive);
             else current_solution = archive.get(new Random().nextInt(archive.size()));
@@ -41,9 +39,6 @@ public class PAES {
                     archive.remove(getWorstCandidate(archive));
             }
         }
-        
-        this.printFormated(archive);
-        
     }
     
     // --------------------------------------------------------------------- //
@@ -154,6 +149,49 @@ public class PAES {
     
     // --------------------------------------------------------------------- //
     
+    public String[] getFitness() {
+        List<double[]> graphic = new ArrayList<>();
+        for (int i = 0; i < func.getNoObjectives(); i++)
+            graphic.add(new double[archive.size()]);
+        for (int i = 0; i < archive.size(); i++) {
+            func.set(archive.get(i));
+            double[] fitness = func.evaluate();
+            for (int j = 0; j < func.getNoObjectives(); j++)
+                graphic.get(j)[i] = fitness[j];
+        }
+        String[] result = new String[graphic.size()];
+        for (int i = 0; i < graphic.size(); i++) {
+            String r = "";
+            double[] f = graphic.get(i);
+            r += "f" + (i+1) + " <- c(";
+            for (int j = 0; j < f.length; j++) {
+                r += f[j];
+                if (j!=f.length-1) r += ", ";
+            }
+            r += ");";
+            result[i] = r;
+        }
+        return result;
+    }
+    
+    public double getDelta() {
+        double DELTA = 0.0;
+        double davg = 0.0;
+        for (int k = 1; k < archive.size(); k++)
+            davg += d(archive.get(k-1), archive.get(k));
+        davg = davg / (archive.size() - 1);
+        for (int k = 1; k < archive.size(); k++)
+            DELTA += Math.abs(d(archive.get(k-1),archive.get(k)) - davg) / archive.size();
+        return DELTA;
+    }
+    
+    public double d(double[] x1, double[] x2) {
+        double sum = 0.0;
+        for (int i=0; i<x1.length; i++)
+            sum += Math.pow(x1[i] - x2[i], 2.0);
+        return Math.sqrt(sum);
+    }
+    
     public void printFormated(List<double[]> pop) {
         List<double[]> graphic = new ArrayList<>();
         for (int i = 0; i < func.getNoObjectives(); i++)
@@ -218,5 +256,31 @@ public class PAES {
     }
     
     // --------------------------------------------------------------------- //
+    
+    public PAES(String f) {
+        ITERATIONS = 25000;
+        MAX_SIZE = 100;
+        this.setFunction(f);
+    }
+    public PAES(String f, int iterations, int max_pop_size) {
+        ITERATIONS = iterations;
+        MAX_SIZE = max_pop_size;
+        this.setFunction(f);
+    }
+    
+    private void setFunction(String f) {
+        switch(f) {
+            // MOP Functions
+            case "MOP2": this.func = new functions.MOP.MOP2(); break;
+            case "MOP4": this.func = new functions.MOP.MOP4(); break;
+            // DTLZ Functions
+            case "DTLZ5": this.func = new functions.DTLZ.DTLZ5(); break;
+            // ZDT Fcuntions
+            case "ZDT1": this.func = new functions.ZDT.ZDT1(); break;
+            case "ZDT2": this.func = new functions.ZDT.ZDT2(); break;
+            case "ZDT3": this.func = new functions.ZDT.ZDT3(); break;
+            case "ZDT6": this.func = new functions.ZDT.ZDT6(); break;
+        }
+    }
     
 }

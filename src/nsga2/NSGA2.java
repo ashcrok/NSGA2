@@ -36,9 +36,7 @@ public class NSGA2 {
             P = new ArrayList<>();
             for (List<double[]> front : fronts) {
                 if (front.size() + P.size() > POPULATION) {
-                    P.addAll(front.subList(0, POPULATION - P.size()));
-                    // TO DO crowding_distance_assignment
-    //                crowding_distance_assignment(front,(100-P.size()));
+                    P.addAll(crowding_distance_assignment(front,(100-P.size())));
                     break;
                 } else { P.addAll(front); }
             }
@@ -202,7 +200,7 @@ public class NSGA2 {
             List<double[]> Sp = new ArrayList<>();
             for (double[] q : P) {
                 if (p != q) {
-                    if (op(p,q)) Sp.add(q); else if (op(q,p)) np += 1;
+                    if (dominates(p,q)) Sp.add(q); else if (dominates(q,p)) np += 1;
                 }
             }
             if (np == 0) F1.add(p);
@@ -238,27 +236,95 @@ public class NSGA2 {
     }
     
     // Crowding distance assignment
-    public void crowding_distance_assignment(List<double[]> front, int size) {
-        int l = front.size();
-        List<Integer> L = new ArrayList<>();
-        for (int i=0; i<l; i++) L.add(0);
-        // TO DO
+    public List<double[]> crowding_distance_assignment(List<double[]> front, int size) {
+        List<double[]> fitness = new ArrayList<>();
+        for (double[] sol : front) {
+            func.set(sol); fitness.add(func.evaluate());
+        }
+        List<Double> crowd = new ArrayList<>();
+        for (int i = 0; i < front.size(); i++)
+            crowd.add(0.0);
+        for (int i = 0; i < func.getNoObjectives(); i++) {
+            double[] x = new double[front.size()];
+            for (int j = 0; j < fitness.size(); j++)
+                x[j] = fitness.get(j)[i];
+            double[] localCrowd = crowd(x);
+            for (int j = 0 ; j < crowd.size(); j++)
+                crowd.set(j,crowd.get(j) + localCrowd[j]);
+        }
+        List<double[]> new_front = new ArrayList<>();
+        for (int k = 0; k < size; k++) {
+            double max = Double.MIN_VALUE;
+            int index = -1;
+            for (int i = 0; i < crowd.size(); i++) {
+                if (crowd.get(i) > max) {
+                    max = crowd.get(i);
+                    index = i;
+                }
+            }
+            new_front.add(front.get(index));
+            crowd.set(index,Double.MIN_VALUE);
+        }
+        return new_front;
+    }
+    
+    private double[] crowd(double[] fit) {
+        // init
+        double[] fit2 = new double[fit.length];
+        List<Integer> mid = new ArrayList<>();
+        for (int i = 0; i < fit.length; i++) {
+            mid.add(i);
+            fit2[i] = fit[i];
+        }
+        // Bubble sort
+        boolean swapped = true;
+        while(swapped) {
+            swapped = false;
+            for (int i = 1; i < fit2.length; i++) {
+                if (fit2[i-1] > fit2[i]) {
+                    swapped = true;
+                    double temp = fit2[i-1];
+                    fit2[i-1] = fit2[i];
+                    fit2[i] = temp;
+                    int temp2 = mid.get(i-1);
+                    mid.set(i-1,mid.get(i));
+                    mid.set(i,temp2);
+                }
+            }
+        }
+        // crowd
+        double[] score = new double[fit2.length];
+        score[0] = Double.MAX_VALUE;
+        score[score.length-1] = Double.MAX_VALUE;
+        for (int i = 1; i < fit2.length - 1; i++) {
+            score[i] = fit2[i+1] - fit2[i-1];
+        }
+        // final crowd
+        double[] crowd = new double[fit2.length];
+        for (int i = 0; i < crowd.length; i++) {
+            crowd[i] = score[mid.indexOf(i)];
+        }
+        return crowd;
     }
     
     // Dominance operator
-    public boolean op(double[] x, double[] y) {
-        func.set(x);
-        double[] f = func.evaluate();
-        func.set(y);
-        double[] g = func.evaluate();
-        
-        return (f[0] <= g[0] && f[1] <= g[1] && f[2] <= g[2] && (f[0] < g[0] || f[1] < g[1] || f[2] < g[2]));
+    public boolean dominates(double[] x, double[] y) {
+        func.set(x); double[] f = func.evaluate();
+        func.set(y); double[] g = func.evaluate();
+        boolean dominates = false;
+        for (int i = 0; i < f.length; i++)
+            if (f[i] > g[i])
+                return false;
+        for (int i = 0; i < f.length; i++)
+            if (f[i] < g[i])
+                dominates = true;
+        return dominates;
     }
     
     // Sort population after dominance operator
     public void sort(List<double[]> P) {
         P.stream().forEach((p) -> {
-            P.stream().filter((q) -> (!op(p,q))).forEach((q) -> {
+            P.stream().filter((q) -> (!dominates(p,q))).forEach((q) -> {
                 double[] temp = p;
                 P.set(P.indexOf(p), q);
                 P.set(P.indexOf(q), temp);
@@ -330,22 +396,22 @@ public class NSGA2 {
     
     // --------------------------------------------------------------------- //
     
-    public NSGA2() { 
+    public NSGA2(String f) {
         this.POPULATION = 100;
         this.ITERATIONS = 250;
+        this.setFunction(f);
     }
-    public NSGA2(int pop_size, int iterations) {
-        this.POPULATION = pop_size;
-        this.ITERATIONS = iterations;
-    }
-    public NSGA2(int pop_size, int iterations, String f) {
+    public NSGA2(String f, int pop_size, int iterations) {
         this.POPULATION = pop_size;
         this.ITERATIONS = iterations;
         this.setFunction(f);
     }
+    public NSGA2() {
+        this.POPULATION = 100;
+        this.ITERATIONS = 250;
+    }
     
     private void setFunction(String f) {
-        System.out.println("setting function");
         switch(f) {
             // MOP Functions
             case "MOP2": this.func = new functions.MOP.MOP2(); break;

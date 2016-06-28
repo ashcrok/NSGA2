@@ -29,10 +29,8 @@ public class NSGA {
         List<List<double[]>> fronts = fast_nondominated_sort(R,fit);
         List<double[]> P = new ArrayList<>();
         for (List<double[]> front : fronts) {
-            if (front.size() + P.size() > R.size()/2) {
-                P.addAll(front.subList(0, R.size()/2 - P.size()));
-                // TO DO crowding_distance_assignment
-//                crowding_distance_assignment(front,(100-P.size()));
+            if (front.size() + P.size() > (R.size() / 2)) {
+                P.addAll(crowding_distance_assignment(front, getFitnessFromFront(front,R,fit), ((R.size()/2)-P.size())));
                 break;
             } else { P.addAll(front); }
         }
@@ -46,8 +44,25 @@ public class NSGA {
         List<double[]> R = matrixToList(population);
         List<double[]> fit = matrixToList(fitness);
         List<List<double[]>> fronts = fast_nondominated_sort(R,fit);
-        System.out.println("Version 0.0.1");
         return genRCode(fronts.get(0));
+    }
+    
+     public double getDelta(double[][] population) {
+        double DELTA = 0.0;
+        double davg = 0.0;
+        for (int k = 1; k < population.length; k++)
+            davg += d(population[k-1], population[k]);
+        davg = davg / (population.length - 1);
+        for (int k = 1; k < population.length; k++)
+            DELTA += Math.abs(d(population[k-1],population[k]) - davg) / population.length;
+        return DELTA;
+    }
+    
+    public double d(double[] x1, double[] x2) {
+        double sum = 0.0;
+        for (int i=0; i<x1.length; i++)
+            sum += Math.pow(x1[i] - x2[i], 2.0);
+        return Math.sqrt(sum);
     }
     
     // --------------------------------------------------------------------- //
@@ -64,8 +79,8 @@ public class NSGA {
             List<double[]> Sp = new ArrayList<>();
             for (double[] q : P) {
                 if (p != q) {
-                    if (op(fit.get(P.indexOf(p)),fit.get(P.indexOf(q)))) Sp.add(q); 
-                    else if (op(fit.get(P.indexOf(q)),fit.get(P.indexOf(p)))) np += 1;
+                    if (dominates(fit.get(P.indexOf(p)),fit.get(P.indexOf(q)))) Sp.add(q); 
+                    else if (dominates(fit.get(P.indexOf(q)),fit.get(P.indexOf(p)))) np += 1;
                 }
             }
             if (np == 0) F1.add(p);
@@ -101,9 +116,95 @@ public class NSGA {
         return fronts;
     }
     
+    // Crowding distance assignment
+    public List<double[]> crowding_distance_assignment(List<double[]> front, List<double[]> fitness, int size) {
+        List<Double> crowd = new ArrayList<>();
+        for (int i = 0; i < front.size(); i++)
+            crowd.add(0.0);
+        for (int i = 0; i < M; i++) {
+            double[] x = new double[front.size()];
+            for (int j = 0; j < fitness.size(); j++)
+                x[j] = fitness.get(j)[i];
+            double[] localCrowd = crowd(x);
+            for (int j = 0 ; j < crowd.size(); j++)
+                crowd.set(j,crowd.get(j) + localCrowd[j]);
+        }
+        
+        List<double[]> new_front = new ArrayList<>();
+        for (int k = 0; k < size; k++) {
+            double max = Double.MIN_VALUE;
+            int index = -1;
+            for (int i = 0; i < crowd.size(); i++) {
+                if (crowd.get(i) > max) {
+                    max = crowd.get(i);
+                    index = i;
+                }
+            }
+            new_front.add(front.get(index));
+            crowd.set(index,Double.MIN_VALUE);
+        }
+        return new_front;
+    }
+    
+    private double[] crowd(double[] fit) {
+        // init
+        double[] fit2 = new double[fit.length];
+        List<Integer> mid = new ArrayList<>();
+        for (int i = 0; i < fit.length; i++) {
+            mid.add(i);
+            fit2[i] = fit[i];
+        }
+        // Bubble sort
+        boolean swapped = true;
+        while(swapped) {
+            swapped = false;
+            for (int i = 1; i < fit2.length; i++) {
+                if (fit2[i-1] > fit2[i]) {
+                    swapped = true;
+                    double temp = fit2[i-1];
+                    fit2[i-1] = fit2[i];
+                    fit2[i] = temp;
+                    int temp2 = mid.get(i-1);
+                    mid.set(i-1,mid.get(i));
+                    mid.set(i,temp2);
+                }
+            }
+        }
+        // crowd
+        double[] score = new double[fit2.length];
+        score[0] = Double.MAX_VALUE;
+        score[score.length-1] = Double.MAX_VALUE;
+        for (int i = 1; i < fit2.length - 1; i++) {
+            score[i] = fit2[i+1] - fit2[i-1];
+        }
+        // final crowd
+        double[] crowd = new double[fit2.length];
+        for (int i = 0; i < crowd.length; i++) {
+            crowd[i] = score[mid.indexOf(i)];
+        }
+        return crowd;
+    }
+    
+    public List<double[]> getFitnessFromFront(List<double[]> front, List<double[]> R, 
+            List<double[]> fitness) {
+        List<double[]> front_fitness = new ArrayList<>();
+        for (double[] front_solution : front)
+            for (double[] sol : R)
+                if (Arrays.equals(front_solution, sol))
+                    front_fitness.add(fitness.get(R.indexOf(sol)));
+        return front_fitness;
+    }
+    
     // Dominance operator
-    private boolean op(double[] f, double[] g) {
-        return (f[0] <= g[0] && f[1] <= g[1] && (f[0] < g[0] || f[1] < g[1]));
+    private boolean dominates(double[] f, double[] g) {
+        boolean dominates = false;
+        for (int i = 0; i < f.length; i++)
+            if (f[i] > g[i])
+                return false;
+        for (int i = 0; i < f.length; i++)
+            if (f[i] < g[i])
+                dominates = true;
+        return dominates;
     }
     
     // --------------------------------------------------------------------- //

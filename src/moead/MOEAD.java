@@ -2,20 +2,20 @@
 package moead;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import metrics.Hypervolume;
 
 public class MOEAD {
     
-    public static final int N = 100; // Population size - the number of subproblems
-    public static final int T = 5; // Number of weight vectors in the neighborhood
-    public static final int ITERATIONS = 10000;
-    public static final double SIGMA = 0.5; // Probability that parent solutions
-                                            // are selected from the neighborhood
+    public List<double[]> pop = new ArrayList<>();
+    public final int N; // Population size - the number of subproblems
+    public final int T = 5; // Number of weight vectors in the neighborhood
+    public final int ITERATIONS;
+    public final double SIGMA = 0.7; // Probability that parent solutions
+                                     // are selected from the neighborhood
     
-    public static functions.F func = new functions.ZDT.ZDT1();
+    public static functions.F func = new functions.MOP.MOP2();
     
     // --------------------------------------------------------------------- //
     
@@ -24,7 +24,6 @@ public class MOEAD {
         // Step 1 - Initialization
         List<double[]> l = getLambdaDistribution();
         List<List<Integer>> B = closestWeightVectors(l);
-        List<double[]> pop = new ArrayList<>();
         for (int i = 0; i < N; i++)
             pop.add(func.generate());
         double[] Z = initZ(pop);
@@ -59,18 +58,6 @@ public class MOEAD {
                     Z[j] = fitY;
             }
             // Step 2.5 - Update of solutions
-            /*
-            int c = 0;
-            int nr = 3;
-            while (!P.isEmpty() && c != nr) {
-                int j = P.get((new Random()).nextInt(P.size()));
-                if (gte(y,l.get(j),Z) <= gte(pop.get(j),l.get(j),Z)) { // de verificat gte daca e nevoie
-                    pop.set(j, y);
-                    c++;
-                }
-                P.remove(P.indexOf(j));
-            }
-            */
             for (int j : P)
                 if (gte(y,l.get(j),Z) <=  gte(pop.get(j),l.get(j),Z)) {
                     pop.set(j, y); break; }
@@ -79,7 +66,43 @@ public class MOEAD {
         }
         
         // Step 3 - Print
-        printFirstFrontFormated(pop);
+//        printPopulation(pop);
+    }
+    
+    public String[] getFitness() {
+        List<double[]> graphic = new ArrayList<>();
+        for (int i = 0; i < func.getNoObjectives(); i++)
+            graphic.add(new double[pop.size()]);
+        for (int i = 0; i < pop.size(); i++) {
+            func.set(pop.get(i));
+            double[] fitness = func.evaluate();
+            for (int j = 0; j < func.getNoObjectives(); j++)
+                graphic.get(j)[i] = fitness[j];
+        }
+        String[] result = new String[graphic.size()];
+        for (int i = 0; i < graphic.size(); i++) {
+            String r = "";
+            double[] f = graphic.get(i);
+            r += "f" + (i+1) + " <- c(";
+            for (int j = 0; j < f.length; j++) {
+                r += f[j];
+                if (j!=f.length-1) r += ", ";
+            }
+            r += ");";
+            result[i] = r;
+        }
+        return result;
+    }
+    
+    public double getDelta() {
+        double DELTA = 0.0;
+        double davg = 0.0;
+        for (int k = 1; k < pop.size(); k++)
+            davg += d(pop.get(k-1), pop.get(k));
+        davg = davg / (pop.size() - 1);
+        for (int k = 1; k < pop.size(); k++)
+            DELTA += Math.abs(d(pop.get(k-1),pop.get(k)) - davg) / N;
+        return DELTA;
     }
     
     // --------------------------------------------------------------------- //
@@ -257,5 +280,35 @@ public class MOEAD {
             sum += Math.pow(x1[i] - x2[i], 2.0);
         return Math.sqrt(sum);
     }
+    
+    // --------------------------------------------------------------------- //
+    
+    public MOEAD(String f) {
+        this.N = 100;
+        this.ITERATIONS = 5000;
+        this.setFunction(f);
+    }
+    public MOEAD(String f, int pop_size, int its) {
+        this.N = pop_size;
+        this.ITERATIONS = its;
+        this.setFunction(f);
+    }
+    
+    private void setFunction(String f) {
+        switch(f) {
+            // MOP Functions
+            case "MOP2": this.func = new functions.MOP.MOP2(); break;
+            case "MOP4": this.func = new functions.MOP.MOP4(); break;
+            // DTLZ Functions
+            case "DTLZ5": this.func = new functions.DTLZ.DTLZ5(); break;
+            // ZDT Fcuntions
+            case "ZDT1": this.func = new functions.ZDT.ZDT1(); break;
+            case "ZDT2": this.func = new functions.ZDT.ZDT2(); break;
+            case "ZDT3": this.func = new functions.ZDT.ZDT3(); break;
+            case "ZDT6": this.func = new functions.ZDT.ZDT6(); break;
+        }
+    }
+    
+    // --------------------------------------------------------------------- //
     
 }
